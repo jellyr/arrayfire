@@ -29,20 +29,30 @@ Array<T>  regions(const Array<char> &in, af_connectivity connectivity)
 
     // Create bindless texture object for the equiv map.
     cudaTextureObject_t tex = 0;
-    // FIXME: Currently disabled, only supported on capaibility >= 3.0
-    //if (compute >= 3.0) {
-    //    cudaResourceDesc resDesc;
-    //    memset(&resDesc, 0, sizeof(resDesc));
-    //    resDesc.resType = cudaResourceTypeLinear;
-    //    resDesc.res.linear.devPtr = out->get();
-    //    resDesc.res.linear.desc.f = cudaChannelFormatKindFloat;
-    //    resDesc.res.linear.desc.x = 32; // bits per channel
-    //    resDesc.res.linear.sizeInBytes = dims[0] * dims[1] * sizeof(float);
-    //    cudaTextureDesc texDesc;
-    //    memset(&texDesc, 0, sizeof(texDesc));
-    //    texDesc.readMode = cudaReadModeElementType;
-    //    CUDA_CHECK(cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL));
-    //}
+
+    cudaDeviceProp prop = getDeviceProp(getActiveDeviceId());
+
+    //Use texture objects with compute 3.0 or higher
+    if (prop.major>=3 && prop.minor>=0 && !std::is_same<T,double>::value) {
+        cudaResourceDesc resDesc;
+        memset(&resDesc, 0, sizeof(resDesc));
+        resDesc.resType = cudaResourceTypeLinear;
+        resDesc.res.linear.devPtr = out.get();
+
+        if (std::is_signed<T>::value)
+            resDesc.res.linear.desc.f = cudaChannelFormatKindSigned;
+        else if (std::is_unsigned<T>::value)
+            resDesc.res.linear.desc.f = cudaChannelFormatKindUnsigned;
+        else
+            resDesc.res.linear.desc.f = cudaChannelFormatKindFloat;
+
+        resDesc.res.linear.desc.x = sizeof(T)*8; // bits per channel
+        resDesc.res.linear.sizeInBytes = dims[0] * dims[1] * sizeof(T);
+        cudaTextureDesc texDesc;
+        memset(&texDesc, 0, sizeof(texDesc));
+        texDesc.readMode = cudaReadModeElementType;
+        CUDA_CHECK(cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL));
+    }
 
     switch(connectivity) {
         case AF_CONNECTIVITY_4:

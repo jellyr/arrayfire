@@ -23,8 +23,9 @@
 #include <thrust/sort.h>
 #include <thrust/transform_scan.h>
 
-#if __CUDACC__
+#include <type_traits>
 
+#if __CUDACC__
 static const int THREADS_X = 16;
 static const int THREADS_Y = 16;
 
@@ -35,19 +36,22 @@ __device__ static int continue_flag = 1;
 
 // Wrapper function for texture fetch
 template<typename T>
-__device__ __inline__
-static T fetch(const int n,
-               cuda::Param<T> equiv_map,
-               cudaTextureObject_t tex)
+static inline __device__
+T fetch(const int n, cuda::Param<T> equiv_map, cudaTextureObject_t tex)
 {
-// FIXME: Enable capability >= 3.0
-//#if (__CUDA_ARCH__ >= 300)
-#if 0
-    // Kepler bindless texture objects
+#if __CUDA_ARCH__ >= 300
     return tex1Dfetch<T>(tex, n);
 #else
     return equiv_map.ptr[n];
 #endif
+}
+
+template<> __device__
+STATIC_ double fetch<double>(const int n,
+                             cuda::Param<double> equiv_map,
+                             cudaTextureObject_t tex)
+{
+    return equiv_map.ptr[n];
 }
 
 // The initial label kernel distinguishes between valid (nonzero)
@@ -477,5 +481,4 @@ void regions(cuda::Param<T> out, cuda::CParam<char> in, cudaTextureObject_t tex)
 
     cuda::memFree(tmp);
 }
-
 #endif // __CUDACC__
