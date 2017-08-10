@@ -30,10 +30,8 @@ Array<T>  regions(const Array<char> &in, af_connectivity connectivity)
     // Create bindless texture object for the equiv map.
     cudaTextureObject_t tex = 0;
 
-    cudaDeviceProp prop = getDeviceProp(getActiveDeviceId());
-
     //Use texture objects with compute 3.0 or higher
-    if (prop.major>=3 && prop.minor>=0 && !std::is_same<T,double>::value) {
+    if (!std::is_same<T,double>::value) {
         cudaResourceDesc resDesc;
         memset(&resDesc, 0, sizeof(resDesc));
         resDesc.resType = cudaResourceTypeLinear;
